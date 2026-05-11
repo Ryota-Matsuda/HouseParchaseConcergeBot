@@ -46,7 +46,7 @@
 
 ## メンタルモデル（ドメインモデルの全体像）
 
-![住宅購入コンシェルジュBot メンタルモデル](https://www.genspark.ai/api/files/s/ptx3UeP2?cache_control=3600)
+![住宅購入コンシェルジュBot メンタルモデル](./mentalmodel.png)
 
 ### ざっくり理解
 
