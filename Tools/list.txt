@@ -1,0 +1,27 @@
+app/
+  __init__.py
+  config.py
+  api/
+    __init__.py
+  batch/
+    __init__.py
+  domain/
+    __init__.py
+    models/
+      __init__.py
+    services/
+      __init__.py
+  infra/
+    __init__.py
+    db/
+      __init__.py
+    source_adapters/
+      __init__.py
+    llm/
+      __init__.py
+    notifier/
+      __init__.py
+  schemas/
+    __init__.py
+tests/
+  __init__.py

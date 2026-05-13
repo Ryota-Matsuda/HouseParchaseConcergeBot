@@ -1,0 +1,46 @@
+[project]
+name = "house-purchase-concierge-bot"
+version = "0.1.0"
+description = "住宅購入をサポートするコンシェルジュBot"
+requires-python = ">=3.12"
+dependencies = [
+    # ここに本番で使うライブラリを今後追加していく
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "black",
+]
+
+# ビルドシステムの指定（pip install -e . で必要になります）
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+# どのフォルダがパッケージか教える
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# 有効にするチェック項目（最初は無難なものだけ）
+select = [
+    "E",   # pycodestyle errors（基本的な文法ミス）
+    "F",   # pyflakes（未使用変数など）
+    "I",   # isort（importの並び順）
+    "W",   # pycodestyle warnings
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
