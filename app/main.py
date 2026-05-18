@@ -5,6 +5,7 @@
 """
 
 from fastapi import FastAPI
+from app.api.health import router as health_router
 
 from app.config import get_settings
 
@@ -15,11 +16,4 @@ app = FastAPI(
     debug=settings.debug,
 )
 
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    """ヘルスチェック用エンドポイント。
-
-    監視や疎通確認で利用される。
-    """
-    return {"status": "ok", "env": settings.app_env}
+app.include_router(health_router)
