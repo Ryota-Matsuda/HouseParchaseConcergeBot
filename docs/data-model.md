@@ -80,16 +80,16 @@ SQLAlchemyによる実装は `app/infra/db/` 配下にある。
 erDiagram
     households ||--o{users : "has"
     households ||--o{search_profiles : "owns"
-    users ||--||preference_profile : "owns"
-    sources ||--o{raw_listings : "owns" 
-    raw_listings ||--||listings : "create"
-    sources ||--o{listings : "owns"
-    match_results }o--||listings : "create" 
-    match_results }o--||search_profiles : "create"
-    match_results }o--||preference_profile : "create"
-    notifications }o--||match_results : "create"
-    notifications }o--||users : "none"
-    feedbacks ||--||notifications : "has"
+    users ||--||preference_profiles : "owns"
+    sources ||--o{raw_listings : "provides" 
+    sources ||--o{listings : "provides" 
+    raw_listings ||--||listings : "normalized"
+    match_results }o--||listings : "evaluates" 
+    match_results }o--||search_profiles : "reads"
+    match_results }o--||preference_profiles : "reads"
+    notifications }o--||match_results : "uses"
+    notifications }o--||users : "sent to"
+    feedbacks ||--||notifications : "responded"
     feedbacks ||--||users : "has"
 
 
@@ -107,16 +107,20 @@ erDiagram
     search_profiles{
         int id PK
         int households_id FK
-        string area_name
-        string station_name
-        int walk_minutes
-        int price
-        int construction_year
-        string layout
-        int floor_space
+        string search_area_name
+        string search_station_name
+        int walk_minutes_min
+        int walk_minutes_max
+        int price_min
+        int price_max
+        int construction_year_min
+        int construction_year_max
+        string search_layout
+        int floor_space_min
+        string search_property_type
     }
 
-    preference_profile{
+    preference_profiles{
         int id PK
         int user_id FK
         string preference_area
@@ -142,8 +146,9 @@ erDiagram
 
     listings{
         int id PK
-        int source_id FK
         int raw_id FK
+        int source_id FK
+        int source_listing_key
         string title
         string url
         string area_name
@@ -153,14 +158,15 @@ erDiagram
         int construction_year
         string layout
         int floor_space
+        string property_type
         string description
         datetime normalized_at
     }
 
     match_results{
         int id PK
-        int preference_id FK
-        int search_id FK
+        int search_profile_id FK
+        int preference_profile_id FK
         int listing_id FK
         string ai_description
         string priority
@@ -171,7 +177,7 @@ erDiagram
 
     notifications{
         int id PK
-        int result_id FK
+        int match_result_id FK
         int user_id FK
         string url
         string contents
@@ -186,7 +192,7 @@ erDiagram
         int notification_id FK
         string feedback_type
         string feedback_detail
-        bool has_register
+        bool has_registered
         datetime responded_at
     }
 
@@ -204,7 +210,7 @@ erDiagram
 | カラム名 | 型      | 制約     | 説明     |
 |---------|---------|----------|----------|
 |id       |int      |PK        |世帯ID    |
-|name     |string   |          |世帯名    |
+|name     |string   |NOT NULL          |世帯名    |
 
 #### users
 利用ユーザー一人を表す。
@@ -213,7 +219,7 @@ erDiagram
 |---------|---------|----------|----------|
 |id       |int      |PK        |ユーザーID|
 |household_id|int|FK|所属する世帯ID|
-|name     |string   |          |ユーザー名    |
+|name     |string   |NOT NULL          |ユーザー名    |
 
 #### search_profiles
 検索条件のセット。
@@ -223,18 +229,28 @@ erDiagram
 |---------|---------|----------|----------|
 |id       |int      |PK        |検索条件ID|
 |household_id|int|FK|この条件を保有している世帯ID|
-|area_name     |string   |          |エリア名    |
-|station_name|string| |最寄り駅|
-|walk_minutes|int||最寄り駅までの徒歩時間|
-|price|int| |金額|
-|construction_year|int| |築年数|
-|layout|string| |間取り|
-|floor_space|int| |坪数|
-|property_type|string| |物件種別(マンション/戸建て/注文住宅)|
+|search_area_name     |string   |          |エリア名    |
+|search_station_name|string| |最寄り駅|
+|walk_minutes_max|int||最寄り駅までの徒歩時間|
+|price_min|int||最低金額|
+|price_max|int| |最高金額|
+|construction_year_min|int| |最低築年数|
+|construction_year_max|int| |最大築年数|
+|search_layout|string| |間取り|
+|floor_space_min|int| |坪数(最小)|
+|search_property_type|string| |物件種別(マンション/戸建て/注文住宅)|
 
 ToDo:検索条件は都度増えそうなので増やしやすいようにしておかないといけない。
 
-#### preference_profile
+→SQLAlchemy+Alembic(?)の組み合わせであれば、あとからカラム追加し、マイグレーションすることは容易。よって現時点で対応は不要。(追加があれば都度実施)
+
+案1:都度追加〇
+
+案2:JSON列を使用する△
+
+案3:EAV(Entity-Attribute-Value)パターン×
+
+#### preference_profiles
 ユーザーの好み・傾向を表す。
 | カラム名 | 型      | 制約     | 説明     |
 |---------|---------|----------|----------|
@@ -247,6 +263,14 @@ ToDo:検索条件は都度増えそうなので増やしやすいようにして
 
 ToDo:ユーザーの好みをどうやってデータベースで表現できるか？
 
+→現時点では、フリーテキストとし、ひな形を作っておく。変更があればまた。
+
+短期的：フリーテキストとする。
+
+中期的：フィードバック履歴から自動算出したい。(平均価格帯、よく選ぶエリアなどを算出)
+
+長期的：機械学習モデルのパラメータを保存
+
 ---
 
 ### 2. データ取得関係
@@ -255,10 +279,10 @@ ToDo:ユーザーの好みをどうやってデータベースで表現できる
 | カラム名 | 型      | 制約     | 説明     |
 |---------|---------|----------|----------|
 |id       |int      |PK        |ソースのID|
-|source_type|string||ソース種別(Webサイト/社内DB)|
-|url|string||ソースの接続先|
-|name|string| |ソース名|
-|is_active|bool||現在有効か|
+|source_type|string|NOT NULL|ソース種別(Webサイト/社内DB)|
+|url|string|NOT NULL|ソースの接続先|
+|name|string|NOT NULL|ソース名|
+|is_active|bool|NOT NULL|現在有効か|
 
 ToDO:source_listing_idやsource_listing_keyが必要とREADME.mdにはあるが、それらの意味が不明。
 
@@ -278,6 +302,7 @@ ToDO:source_listing_idやsource_listing_keyが必要とREADME.mdにはあるが�
 |---------|---------|----------|----------|
 |id       |int      |PK        |データID|
 |source_id|int|FK|取得ソースID|
+|source_listing_key|int||ソースサイトの中での物件ID|
 |raw_id|int|FK|生データID|
 |title|string||タイトル|
 |url|string||ソースのurl|
@@ -288,13 +313,23 @@ ToDO:source_listing_idやsource_listing_keyが必要とREADME.mdにはあるが�
 |construction_year|int| |築年数|
 |layout|string| |間取り|
 |floor_space|int| |坪数|
+|property_type|string||物件種別(マンション/戸建て/注文住宅)|
 |description|string| |備考|
 |normalized_at|datetime||正規化日時|
 
 
 ToDo:listingsからsourcesに直接外部キーは必要か？(raw_listingsを経由すればsourcesの情報は参照可能)
+
+→正規化の考え(=同じ情報を複数個所に持たない)に則ると、不要。削除した。
+
 ToDo:おそらくlistingsとsearch_profilesは同じカラムができるのではないかと思われる
-ToDo:随時追加が必要であると思われる。
+
+→
+
+listings:実際の物件スペック
+
+search_profiles:検索条件(=実際には、walk_minutes_max=徒歩何分以内のようになる。)
+
 ---
 
 ### 3. 結果・通知関係
@@ -304,8 +339,8 @@ ToDo:随時追加が必要であると思われる。
 |---------|---------|----------|----------|
 |id       |int      |PK        |結果ID|
 |listing_id|int|FK|正規化データのID|
-|preference_id|int|FK|ユーザーの嗜好ID|
-|search_id|int|FK|検索条件ID|
+|search_profile_id|int|FK|検索条件のID|
+|preference_profile_id|int|FK|ユーザーの嗜好ID|
 |ai_description|string| |AI要約|
 |priority|string| |優先度スコア|
 |recommend_reason|string| |おすすめ理由|
@@ -317,9 +352,9 @@ ToDo:随時追加が必要であると思われる。
 | カラム名 | 型      | 制約     | 説明     |
 |---------|---------|----------|----------|
 |id       |int      |PK        |通知ID|
-|result_id|int|FK|結果ID(送信の内容)|
+|match_result_id|int|FK|結果ID(送信の内容)|
 |user_id|int|FK|送信先ユーザーID|
-|url|string||通知先URL|
+|url|string||通知先URL(LineのWebhookURL)|
 |contents|string||通知内容|
 |sent_at|datetime||送信日時|
 |sent_status|string||送信状況(成功/失敗)|
@@ -330,10 +365,33 @@ ToDo:随時追加が必要であると思われる。
 | カラム名 | 型      | 制約     | 説明     |
 |---------|---------|----------|----------|
 |id       |int      |PK        |フィードバックID|
-|usr_id|int|FK|ユーザーID|
+|user_id|int|FK|ユーザーID|
 |notification_id|int|FK|フィードバック対象の結果ID|
 |feedback_type|string||フィードバック種別(気になる/いまいち/後で見る)|
 |feedback_detail|string||フィードバック内容(ユーザーの入力内容)|
-|has_register|bool||preferenceProfileに反映済みか否か|
+|has_registered|bool||preferenceProfileに反映済みか否か|
 |responded_at|datetime||フィードバック日時|
 
+---
+
+## 複合制約一覧
+
+### listings
+- `(source_id, source_listing_key)` のセットでUNIQUE
+  - 用途: 同じソースから同じ物件IDのデータを重複登録しない
+
+### users
+- `(household_id, name)` のセットでUNIQUE
+  - 用途: 同じ世帯内に同名のユーザーを作らない
+
+### match_results
+- `(search_profile_id, preference_profile_id, listing_id)` のセットでUNIQUE
+  - 用途: 同じ条件で同じ物件の評価は複数行わない
+
+### notifications
+- `(user_id, match_result_id)` のセットでUNIQUE
+  - 用途: 同じユーザーに同じ評価結果を二重通知しない
+
+### feedbacks
+- `(user_id, notification_id)` のセットでUNIQUE
+  - 用途: 1つの通知に対して1ユーザーから1フィードバック
