@@ -102,6 +102,7 @@ erDiagram
         int id PK
         int households_id FK
         string name
+        bool is_active
     }
 
     search_profiles{
@@ -118,6 +119,7 @@ erDiagram
         string search_layout
         int floor_space_min
         string search_property_type
+        bool is_active
     }
 
     preference_profiles{
@@ -161,6 +163,8 @@ erDiagram
         string property_type
         string description
         datetime normalized_at
+        bool is_active
+        datetime last_seen_date
     }
 
     match_results{
@@ -220,6 +224,7 @@ erDiagram
 |id       |int      |PK        |ユーザーID|
 |household_id|int|FK|所属する世帯ID|
 |name     |string   |NOT NULL          |ユーザー名    |
+|is_active|bool||ユーザーが有効か否か|
 
 #### search_profiles
 検索条件のセット。
@@ -239,6 +244,7 @@ erDiagram
 |search_layout|string| |間取り|
 |floor_space_min|int| |坪数(最小)|
 |search_property_type|string| |物件種別(マンション/戸建て/注文住宅)|
+|is_active|bool||検索条件が有効か否か|
 
 ToDo:検索条件は都度増えそうなので増やしやすいようにしておかないといけない。
 
@@ -316,6 +322,8 @@ ToDO:source_listing_idやsource_listing_keyが必要とREADME.mdにはあるが�
 |property_type|string||物件種別(マンション/戸建て/注文住宅)|
 |description|string| |備考|
 |normalized_at|datetime||正規化日時|
+|is_active|bool||物件が有効か|
+|last_seen_date|datetime||最後に見た日時|
 
 
 ToDo:listingsからsourcesに直接外部キーは必要か？(raw_listingsを経由すればsourcesの情報は参照可能)
@@ -387,6 +395,11 @@ search_profiles:検索条件(=実際には、walk_minutes_max=徒歩何分以内
 ### match_results
 - `(search_profile_id, preference_profile_id, listing_id)` のセットでUNIQUE
   - 用途: 同じ条件で同じ物件の評価は複数行わない
+2026/5/26 この制約は削除する。
+理由：preference_profileはタイミングによって変わるから
+ToDo:match_results取得時は最新のものを取得するように実装する
+
+ToDo:同じ物件を短時間に何度も評価するリスクあり。要対応。
 
 ### notifications
 - `(user_id, match_result_id)` のセットでUNIQUE
