@@ -96,12 +96,15 @@ erDiagram
     households{
         int id PK
         string name
+        datetime created_at
+        bool is_active
     }
 
     users{
         int id PK
         int households_id FK
         string name
+        datetime created_at
         bool is_active
     }
 
@@ -215,6 +218,8 @@ erDiagram
 |---------|---------|----------|----------|
 |id       |int      |PK        |世帯ID    |
 |name     |string   |NOT NULL          |世帯名    |
+|created_at|datetime|NOT NULL|作成日時|
+|is_active|bool|NOT NULL|有効か否か|
 
 #### users
 利用ユーザー一人を表す。
@@ -224,6 +229,7 @@ erDiagram
 |id       |int      |PK        |ユーザーID|
 |household_id|int|FK|所属する世帯ID|
 |name     |string   |NOT NULL          |ユーザー名    |
+|created_at|datetime||作成日時|
 |is_active|bool||ユーザーが有効か否か|
 
 #### search_profiles

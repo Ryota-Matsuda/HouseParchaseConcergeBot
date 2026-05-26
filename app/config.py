@@ -10,6 +10,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 - LOG_LEVEL: ログレベル
 - DEBUG: デバッグフラグ（APP_ENV から自動算出）
 """
+
+
 class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
@@ -31,6 +33,8 @@ class Settings(BaseSettings):
 
 
 """アプリの設定はアプリで1つだけで十分なので、シングルトンとしてキャッシュする。"""
+
+
 @lru_cache
 def get_settings() -> Settings:
     """設定インスタンスを取得する（キャッシュ済み）。"""
