@@ -296,6 +296,8 @@ ToDo:ユーザーの好みをどうやってデータベースで表現できる
 |name|string|NOT NULL|ソース名|
 |is_active|bool|NOT NULL|現在有効か|
 
+※sourcesは外部のエンドポイントであり、このシステムは作成しない。そのためcreated_atカラムは不要。
+
 ToDO:source_listing_idやsource_listing_keyが必要とREADME.mdにはあるが、それらの意味が不明。
 
 #### raw_listings
