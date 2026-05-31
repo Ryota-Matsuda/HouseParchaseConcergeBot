@@ -371,6 +371,10 @@ search_profiles:検索条件(=実際には、walk_minutes_max=徒歩何分以内
 |evidence|string||根拠データ| 
 |evaluated_at|datetime||AI評価した日時|
 
+ToDo:search_profileやpreference_profileが更新された場合、match_resultsも再生成が必要。
+
+ToDo:AI分析に過去の評価が必要ならば、listingsのスナップショットを追加。listings_snapshotとか。
+
 #### notifications
 通知を表す
 | カラム名 | 型      | 制約     | 説明     |
@@ -384,6 +388,8 @@ search_profiles:検索条件(=実際には、walk_minutes_max=徒歩何分以内
 |sent_status|string||送信状況(成功/失敗)|
 |error_message|string||送信エラーメッセージ|
 
+ToDo:AI分析に過去の通知が必要ならば、match_resultsのスナップショットを追加。match_results_snapshotとか。
+
 #### feedbacks
 ユーザーからのフィードバックを表す
 | カラム名 | 型      | 制約     | 説明     |
@@ -395,6 +401,11 @@ search_profiles:検索条件(=実際には、walk_minutes_max=徒歩何分以内
 |feedback_detail|string||フィードバック内容(ユーザーの入力内容)|
 |has_registered|bool||preferenceProfileに反映済みか否か|
 |responded_at|datetime||フィードバック日時|
+
+ToDo:AI分析に過去のフィードバックが必要ならば、notificationのスナップショットを追加。notifications_snapshotとか。
+
+※スナップショットは、すべてfeedbacksテーブルに追加でもいいかも。(AI的にはfeedbacksテーブルのみ分析すればOKになる？)
+
 
 ---
 
