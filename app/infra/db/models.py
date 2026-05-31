@@ -118,3 +118,66 @@ class Listing(Base):
     normalized_at: Mapped[datetime] = mapped_column(default=datetime.now, nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(default=datetime.now, nullable=False)
+
+
+class MatchResult(Base):
+    __tablename__ = "match_results"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    listing_id: Mapped[int] = mapped_column(
+        ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+    )
+    search_profile_id: Mapped[int] = mapped_column(
+        ForeignKey("search_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    preference_profile_id: Mapped[int] = mapped_column(
+        ForeignKey("preference_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    ai_description: Mapped[str | None] = mapped_column(Text)
+    # ToDo:将来Enum化を検討(優先度スコアの値域)
+    priority: Mapped[str | None] = mapped_column(String(50))
+    recommend_reason: Mapped[str | None] = mapped_column(Text)
+    evidence: Mapped[str | None] = mapped_column(Text)
+    evaluated_at: Mapped[datetime] = mapped_column(default=datetime.now, nullable=False)
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    # 同じユーザーに同じ評価結果を二重通知しない複合UNIQUE制約
+    __table_args__ = (
+        UniqueConstraint("user_id", "match_result_id", name="uq_notification_user_match_result"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_result_id: Mapped[int] = mapped_column(
+        ForeignKey("match_results.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    url: Mapped[str | None] = mapped_column(Text)
+    contents: Mapped[str | None] = mapped_column(Text)
+    sent_at: Mapped[datetime] = mapped_column(default=datetime.now, nullable=False)
+    # ToDo:将来Enum化を検討(成功/失敗)
+    sent_status: Mapped[str | None] = mapped_column(String(50))
+    error_message: Mapped[str | None] = mapped_column(Text)
+
+
+class Feedback(Base):
+    __tablename__ = "feedbacks"
+
+    # 1つの通知に対して1ユーザーから1フィードバックの複合UNIQUE制約
+    __table_args__ = (
+        UniqueConstraint("user_id", "notification_id", name="uq_feedback_user_notification"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    notification_id: Mapped[int] = mapped_column(
+        ForeignKey("notifications.id", ondelete="CASCADE"), nullable=False
+    )
+    # ToDo:将来Enum化を検討(気になる/いまいち/後で見る)
+    feedback_type: Mapped[str | None] = mapped_column(String(50))
+    feedback_detail: Mapped[str | None] = mapped_column(Text)
+    has_registered: Mapped[bool] = mapped_column(default=False, nullable=False)
+    responded_at: Mapped[datetime] = mapped_column(default=datetime.now, nullable=False)
