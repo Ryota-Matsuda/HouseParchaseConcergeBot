@@ -309,6 +309,14 @@ ToDO:source_listing_idやsource_listing_keyが必要とREADME.mdにはあるが�
 |raw_data|string||生データ|
 |fetched_at|datetime||取得日時|
 
+##### ToDo（Phase D以降）
+
+###### パース失敗の追跡方法
+- 初期実装: Python の logging モジュールでアプリログに記録
+- 必要に応じて raw_listings に parse_status, parse_error カラム追加を検討
+- 検討タイミング: パース失敗が運用上の課題になったとき
+
+
 
 #### listings
 生データを正規化したもの
