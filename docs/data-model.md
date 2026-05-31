@@ -111,17 +111,17 @@ erDiagram
     search_profiles{
         int id PK
         int households_id FK
-        string search_area_name
-        string search_station_name
+        string area_name
+        string station_name
         int walk_minutes_min
         int walk_minutes_max
         int price_min
         int price_max
         int construction_year_min
         int construction_year_max
-        string search_layout
+        string layout
         int floor_space_min
-        string search_property_type
+        string property_type
         bool is_active
     }
 
@@ -129,9 +129,9 @@ erDiagram
         int id PK
         int user_id FK
         string preference_area
-        string important_condition
-        string prevent_condition
-        string feedback_pattern
+        json important_condition
+        json prevent_condition
+        json feedback_trend
     }
 
     sources{
@@ -151,9 +151,9 @@ erDiagram
 
     listings{
         int id PK
-        int raw_id FK
+        int raw_listing_id FK
         int source_id FK
-        int source_listing_key
+        string source_listing_key
         string title
         string url
         string area_name
@@ -167,7 +167,7 @@ erDiagram
         string description
         datetime normalized_at
         bool is_active
-        datetime last_seen_date
+        datetime last_seen_at
     }
 
     match_results{
@@ -240,16 +240,16 @@ erDiagram
 |---------|---------|----------|----------|
 |id       |int      |PK        |検索条件ID|
 |household_id|int|FK|この条件を保有している世帯ID|
-|search_area_name     |string   |          |エリア名    |
-|search_station_name|string| |最寄り駅|
+|area_name     |string   |          |エリア名    |
+|station_name|string| |最寄り駅|
 |walk_minutes_max|int||最寄り駅までの徒歩時間|
 |price_min|int||最低金額|
 |price_max|int| |最高金額|
 |construction_year_min|int| |最低築年数|
 |construction_year_max|int| |最大築年数|
-|search_layout|string| |間取り|
+|layout|string| |間取り|
 |floor_space_min|int| |坪数(最小)|
-|search_property_type|string| |物件種別(マンション/戸建て/注文住宅)|
+|property_type|string| |物件種別(マンション/戸建て/注文住宅)|
 |is_active|bool||検索条件が有効か否か|
 
 ToDo:検索条件は都度増えそうなので増やしやすいようにしておかないといけない。
@@ -269,9 +269,9 @@ ToDo:検索条件は都度増えそうなので増やしやすいようにして
 |id       |int      |PK        |ユーザー嗜好ID|
 |user_id|int|FK|該当ユーザーID|
 |preference_area|string| |好みのエリア|
-|important_condition|string| |重視する条件|
-|prevent_condition|string| |避ける条件|
-|feedback_pattern|string| |フィードバックの傾向|
+|important_condition|json| |重視する条件|
+|prevent_condition|json| |避ける条件|
+|feedback_trend|json| |フィードバックの傾向|
 
 ToDo:ユーザーの好みをどうやってデータベースで表現できるか？
 
@@ -324,9 +324,9 @@ ToDO:source_listing_idやsource_listing_keyが必要とREADME.mdにはあるが�
 |---------|---------|----------|----------|
 |id       |int      |PK        |データID|
 |source_id|int|FK|取得ソースID|
-|source_listing_key|int||ソースサイトの中での物件ID|
-|raw_id|int|FK|生データID|
-|title|string||タイトル|
+|source_listing_key|string||ソースサイトの中での物件ID|
+|raw_listing_id|int|FK|生データID|
+|title|string|NOT NULL|タイトル|
 |url|string||ソースのurl|
 |area_name     |string   |          |エリア名    |
 |station_name|string| |最寄り駅|
@@ -339,7 +339,7 @@ ToDO:source_listing_idやsource_listing_keyが必要とREADME.mdにはあるが�
 |description|string| |備考|
 |normalized_at|datetime||正規化日時|
 |is_active|bool||物件が有効か|
-|last_seen_date|datetime||最後に見た日時|
+|last_seen_at|datetime||最後に見た日時|
 
 
 ToDo:listingsからsourcesに直接外部キーは必要か？(raw_listingsを経由すればsourcesの情報は参照可能)
