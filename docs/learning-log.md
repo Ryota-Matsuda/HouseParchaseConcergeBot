@@ -44,3 +44,42 @@
 - SQLAlchemy 2.0 公式: https://docs.sqlalchemy.org/en/20/
 - Mermaid ER 図記法: https://mermaid.js.org/syntax/entityRelationshipDiagram.html
 - pytest 公式: https://docs.pytest.org/
+
+## 2026-06-02 ~ 2026-06-09 | #3 共通ドメインモデルとスキーマの定義
+
+### キー学習
+- **Pydantic と SQLAlchemy の責務の違い**: SQLAlchemy はDB永続化（保存形）、Pydantic はアプリ内入出力契約（バリデーション）。同じデータでも「DBに保存する形」と「アプリ内で受け渡す形」は別物
+- **DBスキーマとアプリスキーマの差分**: id, created_at, sent_at など「DB側で自動設定する項目」「送信前データには存在しない項目」はアプリスキーマには持たない。逆に line_user_id のように「DBに保存しないが処理に必要な情報」はアプリスキーマだけが持つ
+- **BaseModel の基本**: `BaseSettings` の親クラス。`field: 型` で必須、`field: 型 \| None = None` で任意、`Field(..., max_length=N, ge=0)` で制約指定
+- **default_factory と default の違い**: `default=datetime.now()` だとクラス定義時の時刻が固定値になる。インスタンス生成時の時刻が欲しければ `default_factory=datetime.now`（関数オブジェクトを渡す）。SQLAlchemy の `mapped_column(default=datetime.now)` と感覚は同じ
+- **pytest.raises での例外テスト**: `with pytest.raises(ValidationError):` ブロック内で例外が発生すれば成功。Pydantic のバリデーション動作確認の定型パターン
+- **LINE Messaging API の仕組み**: 送信先URLは固定（`api.line.me/...`）、送信先ユーザーは body 内の line_user_id（U で始まる33文字）。Webhook URL は受信側エンドポイントで、送信時には使わない。混同しやすい
+- **LINE ユーザーID の取得**: ユーザーが Bot を友だち追加すると LINE が follow イベントを Webhook に POST する。その body から line_user_id を取得して users テーブルに保存しておく
+
+### 反省
+- 最初に「URL = LINE の Webhook URL」と誤認していた。Webhook の意味を「受信側エンドポイント」と正しく理解していなかったため。実際の API 仕様を確認する習慣の重要性を再認識
+- AI が提示したたたき台に対して、フィールド過不足や設計判断を自分でレビューできた。「シンプルすぎないか」「DBとの整合性」「制約の妥当性」を観点として持てるようになった
+- 1スキーマだけ自分で実装し、残り4つを AI に作らせる進め方が機能した。前 Issue の振り返りで決めた「文法を理解したら AI に任せる」を実践できた
+- スキーマ実装中に「スコープ外の重要な問題」に気づけた（is_active 更新タイミング、複数ソース同一物件問題）。これを新規 Issue として切り出し、MVP内/MVP後で優先度分けする判断ができた
+- テストは「定義の再記述」を避ける原則を継続。1スキーマに対して3観点（正常系、必須欠落、型違反）の3テストで十分という感覚が固まった
+
+### 設計判断メモ
+- アプリスキーマは `app/schemas/dto.py` の1ファイルに集約（MVPは分割よりも俯瞰性優先）
+- `RawSourceListing.raw_data` は `str` 一本でソース差分を吸収（差分は Normalizer で対応）
+- `FilterResult` は DB テーブルを持たない一時データとして扱う。passed_rules / failed_rules を残すことで AI 評価時の文脈情報として使える
+- `source_listing_key` は `ListingDraft` で必須に固定。スクレイピング元から取得できない場合は Normalizer が URL ハッシュなど代替キーを生成する責任を持つ
+- `priority` の型は MVP では `str`。AI 出力のブレを見て Enum/Literal 化を検討
+- docstring にスキーマの役割・フロー・DB との差分を書く運用とした（別ドキュメントは作らない）
+- LINE 通知の送信先URLは固定なので `NotificationMessage` には持たない。代わりに line_user_id と listing_url（物件URL）を持つ
+
+### スコープ外として別 Issue 化したもの
+- listings.is_active の更新ロジック設計と実装（MVP内）
+- 複数ソース間の同一物件検知と重複通知防止（MVP後）
+- users テーブルへの line_user_id カラム追加（Phase D の LINE 連携実装時）
+- notifications.url の意味を「物件URL」に再定義（data-model.md 更新）
+
+### 参考リソース
+- Pydantic 公式: https://docs.pydantic.dev/
+- LINE Messaging API: https://developers.line.biz/ja/docs/messaging-api/
+- pytest.raises: https://docs.pytest.org/en/stable/how-to/assert.html#assertions-about-expected-exceptions
+ 
