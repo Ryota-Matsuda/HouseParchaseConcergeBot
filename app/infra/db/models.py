@@ -47,6 +47,7 @@ class RawListing(Base):
     source_id: Mapped[int] = mapped_column(
         ForeignKey("sources.id", ondelete="CASCADE"), nullable=False
     )
+    source_listing_key: Mapped[str] = mapped_column(String(100))
     data: Mapped[str] = mapped_column(Text, nullable=False)
     fetched_at: Mapped[datetime] = mapped_column(default=datetime.now, nullable=False)
 

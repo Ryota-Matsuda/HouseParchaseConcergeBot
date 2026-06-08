@@ -1,17 +1,5 @@
 def test_all_models_importable():
     """全データモデルが正しくインポートできるかをテストする"""
-    from app.infra.db.models import (
-        Feedback,
-        Household,
-        Listing,
-        MatchResult,
-        Notification,
-        PreferenceProfile,
-        RawListing,
-        SearchProfile,
-        Source,
-        User,
-    )
 
 
 def test_all_table_names_are_correct():

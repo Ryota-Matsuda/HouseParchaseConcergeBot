@@ -145,6 +145,7 @@ erDiagram
     raw_listings{
         int id PK
         int source_id FK
+        string source_listing_key
         string raw_data
         datetime fetched_at
     }
@@ -232,6 +233,8 @@ erDiagram
 |created_at|datetime||作成日時|
 |is_active|bool||ユーザーが有効か否か|
 
+ToDo:Line通知のために、LINEのユーザーIDが必要になると思われる。
+
 #### search_profiles
 検索条件のセット。
 
@@ -306,6 +309,7 @@ ToDO:source_listing_idやsource_listing_keyが必要とREADME.mdにはあるが�
 |---------|---------|----------|----------|
 |id       |int      |PK        |生データID|
 |source_id|int|FK|取得ソースID|
+|source_listing_key|string||ソース内の物件ID|
 |raw_data|string||生データ|
 |fetched_at|datetime||取得日時|
 
@@ -382,7 +386,7 @@ ToDo:AI分析に過去の評価が必要ならば、listingsのスナップシ�
 |id       |int      |PK        |通知ID|
 |match_result_id|int|FK|結果ID(送信の内容)|
 |user_id|int|FK|送信先ユーザーID|
-|url|string||通知先URL(LineのWebhookURL)|
+|url|string||通知に含める物件URL|
 |contents|string||通知内容|
 |sent_at|datetime||送信日時|
 |sent_status|string||送信状況(成功/失敗)|
