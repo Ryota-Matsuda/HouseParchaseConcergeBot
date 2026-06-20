@@ -82,4 +82,45 @@
 - Pydantic 公式: https://docs.pydantic.dev/
 - LINE Messaging API: https://developers.line.biz/ja/docs/messaging-api/
 - pytest.raises: https://docs.pytest.org/en/stable/how-to/assert.html#assertions-about-expected-exceptions
- 
+
+## 2026-06-09 – 2026-06-20 | #9 Alembic 初期マイグレーション作成
+
+**キー学習**
+- Alembic は SQLAlchemy の公式マイグレーションツールだが、技術的には別パッケージ。`pip install alembic` が別途必要で、pyproject.toml にも別依存として追加する。
+- SQLAlchemy はアプリ実行中の DB 操作（読み書き、SQL生成）を担当し、Alembic はスキーマ変更の履歴管理と適用を担当する。役割が時間軸で分かれている。
+- マイグレーションファイルは `upgrade()` と `downgrade()` のペアで構成され、revision と down_revision の連鎖で履歴チェーンを形成する（Git の commit と parent の関係に近い）。
+- `alembic init alembic` で `alembic.ini` と `alembic/` ディレクトリ（env.py, script.py.mako, versions/）が生成される。配置はプロジェクトルートが慣習で、`app/` 配下には置かない（アプリではなく開発ツールだから）。
+- env.py の改修ポイント2つ：`target_metadata = Base.metadata` でモデル定義を Alembic に教える、`config.set_main_option("sqlalchemy.url", ...)` で alembic.ini の DB URL を上書きする。
+- env.py と config.py は別プロセスで動くため両方が DB URL を知る必要があるが、二重管理を避けるため env.py から `get_settings()` を呼ぶ構成にする（Single Source of Truth）。
+- `alembic revision --autogenerate -m "..."` で models.py と DB の差分から migration ファイルを自動生成。ただし autogenerate は完璧ではなく、カラム名変更などは「削除＋追加」と誤検出する可能性があるため、生成ファイルの目視確認が鉄則。
+- 主要コマンド：`upgrade head`（最新まで適用）、`downgrade base`（全て戻す）、`downgrade -1`（1つ戻す）、`current`（現在のリビジョン）、`history`（履歴一覧）。
+- SQLite の DB ファイルは `alembic upgrade` の実行時に自動生成される。PostgreSQL/MySQL のように事前に空 DB を作る必要はない。
+- `alembic_version` という Alembic 内部管理テーブルが DB に作られ、downgrade base しても残る。完全リセットには `app.db` ファイル削除が必要。
+- `ondelete` を省略した外部キーは「RESTRICT」相当の挙動になり、親削除を阻止する。「親削除して子は残したい」場合は `ondelete="SET NULL"` + `nullable=True` + 型を `int | None` の3点セットが必要。
+
+**反省**
+- 設計判断（users の ondelete を SET NULL にする）の副作用に自分で気づけた。「household 離脱後の user の search_profile 参照問題」を発見し、即 Issue 化してスコープを守れた。
+- env.py の改修で最初に `get_main_option(key, default)` のデフォルト引数で対応しようとしたが、これは alembic.ini にプレースホルダが残っているため効かないことを学んだ。`set_main_option` で上書きするのが正攻法。
+- ruff/black の指摘を「自動生成ファイルだから除外設定」という判断ができた。ツールに従うか、ツールを設定するかの境界感覚が身についた。
+- 「自分で実装 → AI レビュー」の方針は、初めて触るツール（Alembic）でも有効だった。完全に AI に任せると env.py の役割や set_main_option の意味を理解できないまま進んでいた可能性が高い。
+- Phase A、B の整理を md にアウトプットする習慣が定着し、4日空いても再開がスムーズだった。
+
+**設計判断メモ**
+- Alembic 関連ファイルはプロジェクトルートに配置（`alembic.ini` と `alembic/` ディレクトリ）。Alembic は開発ツールなので `app/` 配下には入れない。
+- DB URL は `app/config.py` の `Settings.database_url` で管理し、env.py から `get_settings()` を呼んで `set_main_option` で alembic.ini を上書きする。alembic.ini の `sqlalchemy.url` は触らず、デフォルトのプレースホルダのまま残す。
+- `users.household_id` は `ondelete="SET NULL"` + `nullable=True` + `Mapped[int | None]` の3点セットで「household 削除後も user を残す」設計を採用。他のテーブルは CASCADE で統一。
+- `alembic/versions/` 配下は ruff と black の対象外に設定（`pyproject.toml` の `extend-exclude`）。理由は自動生成ファイルだから。`alembic/env.py` は対象に残す（自分で編集するから）。
+- マイグレーションファイルは Git で管理（`.gitignore` に追加しない）。逆に `*.db` は除外（バイナリでチーム共有不要）。
+- スキーマ変更時の運用は「models.py 修正 → autogenerate → ファイル目視確認 → upgrade head」の4ステップで統一。README に明文化。
+
+**スコープ外・別 Issue 化**
+- アプリ起動時に「DB が最新マイグレーションに追いついているか」を自動チェックする仕組み（既に Issue 起票済、MVP 後）
+- household 離脱後の user の search_profile 参照ロジック検討（今回新規発見、別 Issue 起票予定）
+- プロジェクト名の表記揺れ整理（README、リポジトリ名、pyproject.toml の name で微妙にスペルが違う、MVP 後の整理対象）
+
+**参考リソース**
+- Alembic 公式: https://alembic.sqlalchemy.org/
+- Alembic Tutorial: https://alembic.sqlalchemy.org/en/latest/tutorial.html
+- SQLAlchemy ondelete: https://docs.sqlalchemy.org/en/20/core/constraints.html#sqlalchemy.schema.ForeignKey.params.ondelete
+
+#9 の学習は、Alembic 単体の使い方だけでなく「開発ツールの設定と責任の境界」「設定の Single Source of Truth」「設計判断の副作用への気づき」など、データベース運用全般のスキルに繋がった。特に「ondelete の挙動」と「自動生成ファイルとの付き合い方」は今後のプロジェクトでも繰り返し出会うパターン。Issue #9 完走、お疲れさまでした！
