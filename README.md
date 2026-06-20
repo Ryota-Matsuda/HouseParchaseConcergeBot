@@ -129,6 +129,7 @@ black .
 ---
 
 ## 2 回目以降の開発開始手順
+### 環境のActivate
 
 一度セットアップが終わっていれば、次回からは以下だけで開発を再開できます。
 
@@ -142,11 +143,26 @@ cd path\to\HousePurchaseConciergeBot
 ```powershell
 deactivate
 ```
+---
 
+## データベース周りを更新したときの開発開始手順
+### 自分でスキーマを変更したとき
+1. models.py を編集
+2. alembic revision --autogenerate -m "変更内容のコメントを記載"
+3. 生成された revision ファイルを目視確認
+4. alembic upgrade head
+
+### 他人の変更を pull したとき
+1. git pull
+2. alembic upgrade head
+
+### DB をリセットしたいとき
+- alembic downgrade base （マイグレーション履歴は残る）
+- または app.db を削除（完全リセット）
 ---
 
 ## プロジェクト構成
-
+ 
 ```
 HousePurchaseConciergeBot/
 ├── app/                      # アプリケーション本体

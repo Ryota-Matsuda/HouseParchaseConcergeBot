@@ -22,7 +22,9 @@ class User(Base):
     __table_args__ = (UniqueConstraint("household_id", "name", name="uq_user_household_name"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    household_id: Mapped[int] = mapped_column(ForeignKey("households.id"), nullable=False)
+    household_id: Mapped[int] = mapped_column(
+        ForeignKey("households.id", ondelete="SET NULL"), nullable=True
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now, nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)

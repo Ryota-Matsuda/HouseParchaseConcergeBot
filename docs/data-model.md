@@ -234,6 +234,7 @@ erDiagram
 |is_active|bool||ユーザーが有効か否か|
 
 ToDo:Line通知のために、LINEのユーザーIDが必要になると思われる。
+household_idの削除時には、household_idをNullとする。理由は、世帯が消えてもユーザー単体で物件情報取得したいケースが考えられるから。
 
 #### search_profiles
 検索条件のセット。

@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 - APP_ENV: 実行環境（local / dev / staging / prod）
 - LOG_LEVEL: ログレベル
 - DEBUG: デバッグフラグ（APP_ENV から自動算出）
+- DATABASE_URL: データベース接続URL
 """
 
 
@@ -25,6 +26,8 @@ class Settings(BaseSettings):
     app_name: str = "House Purchase Concierge Bot"
     app_env: Literal["local", "dev", "staging", "prod"] = "local"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    # データベース接続情報
+    database_url: str = "sqlite:///./app.db"
 
     @property
     def debug(self) -> bool:
