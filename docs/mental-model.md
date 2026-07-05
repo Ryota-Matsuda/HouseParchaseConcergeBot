@@ -73,5 +73,40 @@ flowchart LR
   AppLayer -->|DTO を利用| DTO
   RepoLayer -->|DTO を受け取る| DTO
 ```
+### モジュール間データフロー
+
+各モジュールがどの DTO を受け取り、どの DTO を出力するかを整理します。
+DTO の詳細は `app/schemas/dto.py` の docstring を参照してください。
+
+#### Listing 処理フロー（物件取得〜正規化）
+
+| 段階 | 入力 | モジュール | 出力 | 責務 |
+|---|---|---|---|---|
+| 1 | Source(URL) | WebScraper | RawSourceListing | 外部サイトから生データ取得 |
+| 2 | RawSourceListing | Repository | raw_listings (DB) | 生データを DB に保存 |
+| 3 | RawSourceListing | Normalizer | ListingDraft | 生データを正規化 |
+| 4 | ListingDraft | ListingRepository | listings (DB) | 正規化済みデータを DB に保存 |
+
+#### Filter/AI 評価フロー
+
+| 段階 | 入力 | モジュール | 出力 | 責務 |
+|---|---|---|---|---|
+| 1 | Listing + SearchProfile | RuleEngine | FilterResult | 条件フィルタ判定 |
+| 2 | FilterResult(passed) + PreferenceProfile | AIAnalyzer | AIScoreResult | AI による評価 |
+| 3 | AIScoreResult | Repository | match_results (DB) | 評価結果を DB に保存 |
+
+#### Notification 処理フロー（通知生成〜送信〜履歴保存）
+
+| 段階 | 入力 | モジュール | 出力 | 責務 |
+|---|---|---|---|---|
+| 1 | AIScoreResult | NotificationCreator | NotificationMessage | LINE 送信用メッセージ組み立て |
+| 2 | NotificationMessage | Notifier | NotificationRecord | LINE 送信 + 送信結果を含む Record 生成 |
+| 3 | NotificationRecord | NotificationRepository | notifications (DB) | Record を DB に保存 |
+
+**設計ポイント**:
+- 送信時刻・送信ステータス・エラーメッセージは Notifier が確定させ、NotificationRecord に含める
+- NotificationRepository は「型変換 + 保存」のみ、業務的な値の判定・追加は行わない
+
 ### クラス設計
->本節では、主要なクラスの設計をまとめる。
+
+（既存の内容、または今後の実装で追記）

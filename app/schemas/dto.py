@@ -13,12 +13,34 @@ class NotificationMessage(BaseModel):
     DBとの差分：
     id,match_result_id,sent_at,sent_statusはNotifierが生成するため、ここには含まれない。
 
+    フロー：
+    AIScoreResult → NotificationCreator → NotificationMessage
     """
 
     user_id: int = Field(..., description="DB上のユーザID")
     line_user_id: str = Field(..., max_length=100, description="通知先のLINEユーザID")
     listing_url: str = Field(..., max_length=500, description="物件情報URL")
     contents: str = Field(..., max_length=5000, description="通知内容")
+
+
+class NotificationRecord(BaseModel):
+    """Notification record スキーマ
+    notificationの結果と送信メッセージの情報をまとめたスキーマ。
+
+    DBとの差分：
+    - idはDB側で自動設定されるため不要
+
+    フロー：
+    NotificationMessage → Notifier → NotificationRecord → Repository → notifications
+    """
+
+    match_result_id: int = Field(..., description="DB上の評価結果ID")
+    user_id: int = Field(..., description="DB上のユーザID")
+    url: str | None = Field(None, max_length=500, description="物件情報URL")
+    contents: str | None = Field(None, max_length=5000, description="通知内容")
+    sent_at: datetime = Field(..., description="送信日時")
+    sent_status: str | None = Field(None, max_length=50, description="送信ステータス")
+    error_message: str | None = Field(None, description="送信エラー時のメッセージ")
 
 
 class RawSourceListing(BaseModel):
