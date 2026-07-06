@@ -43,6 +43,43 @@ class NotificationRecord(BaseModel):
     error_message: str | None = Field(None, description="送信エラー時のメッセージ")
 
 
+class FeedbackRecord(BaseModel):
+    """Feedback record スキーマ
+    feedbackの結果と送信メッセージの情報をまとめたスキーマ。
+
+    DBとの差分：
+    - idはDB側で自動設定されるため不要
+
+    フロー：
+    LINE Webhook (通知への返信) → FeedbackHandler → FeedbackRecord → Repository → feedbacks
+
+    """
+
+    user_id: int = Field(..., description="DB上のユーザID")
+    notification_id: int = Field(..., description="DB上の通知ID")
+    # ToDo:将来Enum化を検討(気になる/いまいち/後で見る)
+    feedback_type: str | None = Field(None, max_length=50, description="フィードバック種別")
+    feedback_detail: str | None = Field(None, description="フィードバック詳細")
+    has_registered: bool = Field(..., description="PreferenceProfileに登録済みかどうかのフラグ")
+    responded_at: datetime = Field(..., description="フィードバック送信日時")
+
+
+class UserRecord(BaseModel):
+    """User record スキーマ
+    ユーザーの情報をまとめたスキーマ。LINEの友達追加時に使う
+
+    DBとの差分：
+    - idはDB側で自動設定されるため不要
+
+    フロー：
+    UserRecord → Repository → users
+    """
+
+    household_id: int | None = Field(None, description="DB上の世帯ID")
+    name: str = Field(..., max_length=100, description="ユーザー名")
+    is_active: bool = Field(True, description="ユーザーがアクティブかどうかのフラグ")
+
+
 class RawSourceListing(BaseModel):
     """ソースから取得した生データを表すスキーマ。
 

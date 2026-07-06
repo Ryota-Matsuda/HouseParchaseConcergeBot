@@ -1,4 +1,3 @@
-
 from sqlalchemy.orm import Session
 
 from app.infra.db.models import Notification
