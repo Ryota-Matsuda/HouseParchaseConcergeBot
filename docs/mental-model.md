@@ -103,9 +103,19 @@ DTO の詳細は `app/schemas/dto.py` の docstring を参照してください�
 | 2 | NotificationMessage | Notifier | NotificationRecord | LINE 送信 + 送信結果を含む Record 生成 |
 | 3 | NotificationRecord | NotificationRepository | notifications (DB) | Record を DB に保存 |
 
+#### Feedback 処理フロー(フィードバック受信〜保存)
+
+| 段階 | 入力 | モジュール | 出力 | 責務 |
+|---|---|---|---|---|
+| 1 | LINE Webhook (通知への返信) | FeedbackHandler | FeedbackRecord | Webhook を解析し、フィードバック情報を Record 化 |
+| 2 | FeedbackRecord | FeedbackRepository | feedbacks (DB) | Record を DB に保存 |
+
 **設計ポイント**:
-- 送信時刻・送信ステータス・エラーメッセージは Notifier が確定させ、NotificationRecord に含める
-- NotificationRepository は「型変換 + 保存」のみ、業務的な値の判定・追加は行わない
+- 各 DTO は「その時点で確定している情報」を表現する
+- モジュールは前段の出力を受け取り、次段への入力を出力する
+- Repository は「型変換 + 保存」に純粋化し、業務的な値の判定・追加は行わない
+- 送信時刻・ステータスなどの実行結果情報は、実行したモジュール(Notifier など)が確定させて後段に渡す
+
 
 ### クラス設計
 

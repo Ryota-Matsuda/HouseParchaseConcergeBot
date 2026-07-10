@@ -124,3 +124,52 @@
 - SQLAlchemy ondelete: https://docs.sqlalchemy.org/en/20/core/constraints.html#sqlalchemy.schema.ForeignKey.params.ondelete
 
 #9 の学習は、Alembic 単体の使い方だけでなく「開発ツールの設定と責任の境界」「設定の Single Source of Truth」「設計判断の副作用への気づき」など、データベース運用全般のスキルに繋がった。特に「ondelete の挙動」と「自動生成ファイルとの付き合い方」は今後のプロジェクトでも繰り返し出会うパターン。Issue #9 完走、お疲れさまでした！
+
+## 2026-06-22 ~ 2026-07-10 | #5 Repository層の実装
+
+### キー学習
+- **Repository パターンの本質**: 「永続化ストレージへの操作を1つの窓口にまとめる」こと。読み書き両方を持つ必要はなく、読み取り専用の Repository も普通に存在する（例: SearchProfileRepository）
+- **モデル定義と Repository の恩恵は独立**: モデル定義は「SQLAlchemy 構文が使える」、Repository は「SQLAlchemy 構文さえ書かずに済む」。両方あって初めてアプリ層が DB を意識しない設計になる
+- **Session の Unit of Work パターン**: Session は「管理下のオブジェクトの変更を全て記憶する」仕組み。`session.add()` した新規、`session.query()` 後にフィールドを書き換えたオブジェクト、`session.delete()` した削除対象を全て内部で追跡。`session.commit()` 時に一括で SQL に変換して発行するため、commit に引数は不要
+- **engine / Session / sessionmaker の役割分担**: engine は接続プール（アプリ全体で1つ）、Session は対話単位（トランザクション境界）、sessionmaker は Session を作る工場。分離することで並列処理とテスタビリティを両立
+- **Session はコンストラクタ注入（DI）**: Repository 内で作らない理由は、複数 Repository が同一 Session を共有できること、テスト用と本番用で差し替え可能にすること
+- **commit は呼び出し側の責務**: Repository は commit しない。理由は「複数 Repository をまたぐトランザクション」を業務単位で扱うため。commit のタイミング決定は業務判断であり、Repository の責務ではない
+- **Repository は「型変換 + 保存」に純粋化**: 情報追加（`sent_at` の生成、`sent_status` の判定など）は前段のモジュール（Notifier など）が確定させて Record として渡す。Repository が業務ロジックを持つと責務が混濁する
+- **pytest fixture の仕組み**: `@pytest.fixture` でデコレートし、テスト関数の引数名と一致すると自動注入される。`yield` までが前準備、以降がクリーンアップ。`conftest.py` に置くと同ディレクトリ以下から名前だけで参照可能
+- **インメモリ SQLite でのテスト**: `sqlite:///:memory:` + function スコープ fixture + `Base.metadata.create_all()` で、各テストが独立した DB を持つ。高速、独立性、本番影響なしの3つを同時に達成
+- **`try/finally` によるリソース保証**: assert 失敗や例外が起きても close と dispose が確実に走る。「リソース確保と解放はセット」という Python の鉄則
+- **DTO とモデルを分ける理由**: (1) 変更容易性（片方の変更が他方に波及しない）、(2) テスタビリティ（Pydantic は engine 不要でインスタンス化可能）、(3) API 連携（FastAPI で入出力型として再利用可能）、(4) 依存方向の一貫性維持
+
+### 反省
+- 「モデルがあれば SQLAlchemy が使える／Repository があれば SQLAlchemy 構文すら書かずに済む」という抽象化の階層に気づいた瞬間が今回の最大の学びだった。それまで Repository の恩恵が Phase A の記述と矛盾して見えていた
+- 「Repository が commit を呼ばない理由」の理解に一番時間がかかった。複数 Repository をまたぐトランザクションを想像できるようになって初めて腑に落ちた
+- NotificationRepository 実装時に「引数の型は何がふさわしいか」を自分で違和感として言語化できた。この違和感が `NotificationRecord` DTO 新設という設計判断につながった。違和感の言語化＝設計判断の入り口
+- pytest fixture の仕組みを1度理解した後も土日を挟むと薄れる。復習の必要性を実感し、セルフチェック用の自問リストを毎回残す運用を確立
+- AI Developer の使い方の方針を明確化：初めて触る技術や設計判断は自分で書く、繰り返しパターン部分は AI に任せてレビューに集中。「レビュー力は書く経験から育つ」を実感
+- テストの assertion 粒度が Repository ごとにばらついた。次回以降は「保存された」だけでなく「正しい値で保存された」を全 Repository で揃える
+- Phase A/B/C の3段階（要件整理→技術理解→実装）が定着し、間が空いても復習で戻れるようになった
+
+### 設計判断メモ
+- Repository は Repository ごとにファイル分割（`app/infra/db/repository/listing.py` など）。1ファイル集約案は却下、責務ごとの分離を優先
+- 全 Repository で `__init__(self, session: Session)` を統一。DI と一貫性のため
+- 「DB 保存用 DTO」を新設する方針を確立：`NotificationRecord`, `FeedbackRecord`, `UserRecord`。既存の `NotificationMessage`（送信用）と役割を分離し、フィールドの時系列的な意味を明確化
+- SearchProfileRepository は読み取り専用（`find_active` のみ）。`save` は「ユーザーが検索条件を設定する Issue」で追加。YAGNI 適用
+- UserRepository は `save` のみ。`find_by_line_id` などは LINE 連携 Issue で追加
+- テストはインメモリ SQLite + function スコープ fixture。テストデータは Repository の `save` メソッド経由か、`session.add()` 直接投入のどちらも許容（テストコードでは規約を緩める）
+- `alembic/versions/` は ruff/black の除外（前 Issue で決定）。Repository/テストコードは対象
+
+### スコープ外・別 Issue 化
+- User モデルへの `line_user_id` カラム追加（LINE 連携の前提として必要、要新規起票）
+- LINE Webhook 受信基盤（FastAPI + 署名検証、要新規起票）
+- LINE 友だち追加時のユーザー登録フロー（要新規起票）
+- Household 作成・参加フロー（要新規起票、`HouseholdRepository.save` も同時実装）
+- SearchProfile 設定フロー（要新規起票、`SearchProfileRepository.save` も同時実装）
+- Feedback 受信フロー（要新規起票、MVP+ の可能性あり）
+- テストの assertion 粒度統一（次回意識するレベル、Issue 化不要）
+
+### 参考リソース
+- SQLAlchemy Session and Unit of Work: https://docs.sqlalchemy.org/en/20/orm/session.html
+- pytest fixture: https://docs.pytest.org/en/stable/how-to/fixtures.html
+- Pydantic v2: https://docs.pydantic.dev/latest/
+
+#5 の学習は、Repository パターン単体だけでなく「モジュール間の責務分離」「DTO 設計の時系列的な意味付け」「Unit of Work パターン」など、アプリ全体の設計思想に繋がった。特に「Repository は型変換に純粋化、業務ロジックは呼び出し側」の原則は、今後 Notifier や FeedbackHandler を実装するときも同じ思考パターンで進められる。Issue #5 完走、お疲れさまでした！
